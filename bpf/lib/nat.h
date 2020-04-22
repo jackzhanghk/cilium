@@ -151,7 +151,7 @@ static __always_inline void snat_v4_delete(const struct ipv4_ct_tuple *otuple,
 static __always_inline void snat_v4_swap_tuple(const struct ipv4_ct_tuple *otuple,
 					       struct ipv4_ct_tuple *rtuple)
 {
-	__builtin_memset(rtuple, 0, sizeof(*rtuple));
+	memset(rtuple, 0, sizeof(*rtuple));
 	rtuple->nexthdr = otuple->nexthdr;
 	rtuple->daddr = otuple->saddr;
 	rtuple->saddr = otuple->daddr;
@@ -207,8 +207,8 @@ static __always_inline int snat_v4_new_mapping(struct __ctx_buff *ctx,
 	struct ipv4_ct_tuple rtuple;
 	__u16 port;
 
-	__builtin_memset(&rstate, 0, sizeof(rstate));
-	__builtin_memset(ostate, 0, sizeof(*ostate));
+	memset(&rstate, 0, sizeof(rstate));
+	memset(ostate, 0, sizeof(*ostate));
 
 	rstate.to_daddr = otuple->saddr;
 	rstate.to_dport = otuple->sport;
@@ -272,8 +272,8 @@ static __always_inline int snat_v4_track_local(struct __ctx_buff *ctx,
 	if (!needs_ct)
 		return 0;
 
-	__builtin_memset(&ct_state, 0, sizeof(ct_state));
-	__builtin_memcpy(&tmp, tuple, sizeof(tmp));
+	memset(&ct_state, 0, sizeof(ct_state));
+	memcpy(&tmp, tuple, sizeof(tmp));
 
 	where = dir == NAT_DIR_INGRESS ? CT_INGRESS : CT_EGRESS;
 
@@ -486,9 +486,9 @@ static __always_inline __maybe_unused int snat_v4_create_dsr(struct __ctx_buff *
 static __always_inline int snat_v4_process(struct __ctx_buff *ctx, int dir,
 					   const struct ipv4_nat_target *target)
 {
+	struct icmphdr icmphdr __align_stack_8;
 	struct ipv4_nat_entry *state, tmp;
 	struct ipv4_ct_tuple tuple = {};
-	struct icmphdr icmphdr;
 	void *data, *data_end;
 	struct iphdr *ip4;
 	struct {
@@ -619,7 +619,7 @@ static __always_inline void snat_v6_delete(const struct ipv6_ct_tuple *otuple,
 static __always_inline void snat_v6_swap_tuple(struct ipv6_ct_tuple *otuple,
 					       struct ipv6_ct_tuple *rtuple)
 {
-	__builtin_memset(rtuple, 0, sizeof(*rtuple));
+	memset(rtuple, 0, sizeof(*rtuple));
 	rtuple->nexthdr = otuple->nexthdr;
 	rtuple->daddr = otuple->saddr;
 	rtuple->saddr = otuple->daddr;
@@ -676,8 +676,8 @@ static __always_inline int snat_v6_new_mapping(struct __ctx_buff *ctx,
 	struct ipv6_ct_tuple rtuple;
 	__u16 port;
 
-	__builtin_memset(&rstate, 0, sizeof(rstate));
-	__builtin_memset(ostate, 0, sizeof(*ostate));
+	memset(&rstate, 0, sizeof(rstate));
+	memset(ostate, 0, sizeof(*ostate));
 
 	rstate.to_daddr = otuple->saddr;
 	rstate.to_dport = otuple->sport;
@@ -741,8 +741,8 @@ static __always_inline int snat_v6_track_local(struct __ctx_buff *ctx,
 	if (!needs_ct)
 		return 0;
 
-	__builtin_memset(&ct_state, 0, sizeof(ct_state));
-	__builtin_memcpy(&tmp, tuple, sizeof(tmp));
+	memset(&ct_state, 0, sizeof(ct_state));
+	memcpy(&tmp, tuple, sizeof(tmp));
 
 	where = dir == NAT_DIR_INGRESS ? CT_INGRESS : CT_EGRESS;
 
@@ -948,9 +948,9 @@ static __always_inline __maybe_unused int snat_v6_create_dsr(struct __ctx_buff *
 static __always_inline int snat_v6_process(struct __ctx_buff *ctx, int dir,
 					   const struct ipv6_nat_target *target)
 {
+	struct icmp6hdr icmp6hdr __align_stack_8;
 	struct ipv6_nat_entry *state, tmp;
 	struct ipv6_ct_tuple tuple = {};
-	struct icmp6hdr icmp6hdr;
 	void *data, *data_end;
 	struct ipv6hdr *ip6;
 	int ret, hdrlen;

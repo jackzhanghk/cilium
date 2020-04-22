@@ -17,6 +17,8 @@
 #define CTX_ACT_DROP			XDP_DROP
 #define CTX_ACT_TX			XDP_TX	/* hairpin only */
 
+#define CTX_DIRECT_WRITE_OK		1
+
 					/* cb + RECIRC_MARKER + XFER_MARKER */
 #define META_PIVOT			((int)(field_sizeof(struct __sk_buff, cb) + \
 					       sizeof(__u32) * 2))
@@ -47,7 +49,7 @@ xdp_load_bytes(struct xdp_md *ctx, __u64 off, void *to, const __u64 len)
 		       [offmax]"i"(__CTX_OFF_MAX), [errno]"i"(-EINVAL)
 		     : "r1", "r2");
 	if (!ret)
-		__builtin_memcpy(to, from, len);
+		memcpy(to, from, len);
 	return ret;
 }
 
@@ -73,7 +75,7 @@ xdp_store_bytes(struct xdp_md *ctx, __u64 off, const void *from,
 		       [offmax]"i"(__CTX_OFF_MAX), [errno]"i"(-EINVAL)
 		     : "r1", "r2");
 	if (!ret)
-		__builtin_memcpy(to, from, len);
+		memcpy(to, from, len);
 	return ret;
 }
 
