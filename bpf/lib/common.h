@@ -560,7 +560,7 @@ struct lb6_key {
 struct lb6_service {
 	union {
 		__u32 backend_id;			/* Backend ID in lb6_backends */
-		__u32 session_affinity_timeout;		/* In seconds, only for master svc */
+		__u32 affinity_timeout;		/* In seconds, only for master svc */
 	};
 	__u16 count;
 	__u16 rev_nat_index;
@@ -568,7 +568,7 @@ struct lb6_service {
 	     nodeport:1,	/* K8s NodePort service */
 	     local_scope:1,	/* K8s externalTrafficPolicy=Local */
 	     hostport:1,	/* K8s hostPort forwarding */
-	     session_affinity:1,/* K8s sessionAffinity=clientIP */
+	     affinity:1,	/* K8s sessionAffinity=clientIP */
 	     reserved:3;
 	__u8 pad[3];
 };
@@ -659,6 +659,14 @@ struct lb4_affinity_key {
 	     reserved:7;
 	__u8 pad1;
 	__u32 pad2;
+};
+
+struct lb6_affinity_key {
+	union v6addr client_id;	/* client_id.d1 is used to store netns cookie */
+	__u16 rev_nat_id;
+	__u8 netns_cookie:1,
+	     reserved:7;
+	__u8 pad;
 };
 
 struct lb_affinity_val {

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"unsafe"
 
+	"github.com/cilium/cilium/common/types"
 	"github.com/cilium/cilium/pkg/bpf"
 	"github.com/cilium/cilium/pkg/byteorder"
 )
@@ -47,11 +48,22 @@ var (
 
 			return aKey.ToNetwork(), aVal, nil
 		}).WithCache()
-
 	Affinity4Map = bpf.NewMap(
 		Affinity4MapName,
 		bpf.MapTypeLRUHash,
 		&Affinity4Key{},
+		int(unsafe.Sizeof(Affinity4Key{})),
+		&AffinityValue{},
+		int(unsafe.Sizeof(AffinityValue{})),
+		10000, // TODO(brb)
+		0,
+		0,
+		bpf.ConvertKeyValue,
+	)
+	Affinity6Map = bpf.NewMap(
+		Affinity4MapName,
+		bpf.MapTypeLRUHash,
+		&Affinity6Key{},
 		int(unsafe.Sizeof(Affinity4Key{})),
 		&AffinityValue{},
 		int(unsafe.Sizeof(AffinityValue{})),
@@ -124,7 +136,10 @@ type Affinity4Key struct {
 // +k8s:deepcopy-gen=true
 // +k8s:deepcopy-gen:interfaces=github.com/cilium/cilium/pkg/bpf.MapKey
 type Affinity6Key struct {
-	TODO uint8
+	ClientID    types.IPv6 `algin:"client_id"`
+	RevNATID    uint16     `align:"rev_nat_id"`
+	NetNSCookie uint8      `align:"netns_cookie"`
+	Pad         uint8      `align:"pad"`
 }
 
 // AffinityValue is the Go representing of lb_affinity_value

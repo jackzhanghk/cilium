@@ -47,6 +47,17 @@ struct bpf_elf_map __section_maps LB6_BACKEND_MAP = {
 	.flags          = CONDITIONAL_PREALLOC,
 };
 
+#ifdef ENABLE_SESSION_AFFINITY
+struct bpf_elf_map __section_maps LB6_AFFINITY_MAP = {
+	.type		= BPF_MAP_TYPE_LRU_HASH,
+	.size_key	= sizeof(struct lb6_affinity_key),
+	.size_value	= sizeof(struct lb_affinity_val),
+	.pinning	= PIN_GLOBAL_NS,
+	.max_elem	= 10000, // TODO(brb)
+	.flags		= 0,
+};
+#endif
+
 #endif /* ENABLE_IPV6 */
 
 #ifdef ENABLE_IPV4

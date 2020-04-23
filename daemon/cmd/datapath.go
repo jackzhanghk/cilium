@@ -442,7 +442,11 @@ func (d *Daemon) initMaps() error {
 				return err
 			}
 		}
-		// TODO(brb) v6
+		if option.Config.EnableIPv6 {
+			if _, err := lbmap.Affinity6Map.OpenOrCreate(); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
