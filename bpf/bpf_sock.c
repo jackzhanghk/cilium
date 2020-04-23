@@ -456,7 +456,7 @@ struct bpf_elf_map __section_maps LB6_REVERSE_NAT_SK_MAP = {
 static __always_inline int sock6_update_revnat(struct bpf_sock_addr *ctx,
 					       struct lb6_backend *backend,
 					       struct lb6_key *lkey,
-					       struct lb6_service *slave_svc)
+					       __u16 rev_nat_index)
 {
 	struct ipv6_revnat_tuple rkey = {};
 	struct ipv6_revnat_entry rval = {};
@@ -467,7 +467,7 @@ static __always_inline int sock6_update_revnat(struct bpf_sock_addr *ctx,
 
 	rval.address = lkey->address;
 	rval.port = lkey->dport;
-	rval.rev_nat_index = slave_svc->rev_nat_index;
+	rval.rev_nat_index = rev_nat_index;
 
 	return map_update_elem(&LB6_REVERSE_NAT_SK_MAP, &rkey,
 			       &rval, 0);
@@ -477,7 +477,7 @@ static __always_inline
 int sock6_update_revnat(struct bpf_sock_addr *ctx __maybe_unused,
 			struct lb6_backend *backend __maybe_unused,
 			struct lb6_key *lkey __maybe_unused,
-			struct lb6_service *slave_svc __maybe_unused)
+			__u16 rev_nat_index __maybe_unused)
 {
 	return -1;
 }
@@ -673,6 +673,8 @@ static __always_inline int __sock6_xlate(struct bpf_sock_addr *ctx,
 	};
 	struct lb6_service *slave_svc;
 	union v6addr v6_orig;
+	__u32 backend_id = 0;
+	bool backend_from_affinity = false;
 
 	if (!udp_only && !sock_proto_enabled(ctx->protocol))
 		return -ENOTSUP;
@@ -695,26 +697,53 @@ static __always_inline int __sock6_xlate(struct bpf_sock_addr *ctx,
 	if (sock6_skip_xlate(svc, in_hostns, &v6_orig))
 		return -EPERM;
 
-	key.slave = (sock_local_cookie(ctx) % svc->count) + 1;
+#if defined(ENABLE_SESSION_AFFINITY) && defined(BPF_HAVE_NETNS_COOKIE)
+	/* Session affinity id (a netns cookie) */
+	union v6addr client_id = { .d1 = 0 };
+	if (svc->affinity) {
+		client_id.d1 = get_netns_cookie(ctx);
+		backend_id = lb6_affinity_backend_id(svc->rev_nat_index,
+						     svc->affinity_timeout,
+						     true, &client_id);
+		backend_from_affinity = true;
+	}
+#endif
 
-	slave_svc = __lb6_lookup_slave(&key);
-	if (!slave_svc) {
-		update_metrics(0, METRIC_EGRESS, REASON_LB_NO_SLAVE);
-		return -ENOENT;
+	if (backend_id == 0) {
+reselect_backend: __maybe_unused
+		backend_from_affinity = false;
+		key.slave = (sock_local_cookie(ctx) % svc->count) + 1;
+		slave_svc = __lb6_lookup_slave(&key);
+		if (!slave_svc) {
+			update_metrics(0, METRIC_EGRESS, REASON_LB_NO_SLAVE);
+			return -ENOENT;
+		}
 	}
 
-	backend = __lb6_lookup_backend(slave_svc->backend_id);
+	backend = __lb6_lookup_backend(backend_id);
 	if (!backend) {
+#if defined(ENABLE_SESSION_AFFINITY) && defined(BPF_HAVE_NETNS_COOKIE)
+		if (backend_from_affinity) {
+			lb6_delete_affinity(svc->rev_nat_index, true, &client_id);
+			goto reselect_backend;
+		}
+#endif
 		update_metrics(0, METRIC_EGRESS, REASON_LB_NO_BACKEND);
 		return -ENOENT;
 	}
+
+#if defined(ENABLE_SESSION_AFFINITY) && defined(BPF_HAVE_NETNS_COOKIE)
+	if (svc->affinity) {
+		lb6_update_affinity(svc->rev_nat_index, true, &client_id, backend_id);
+	}
+#endif
 
 	if (!udp_only && ctx->protocol == IPPROTO_TCP) {
 		goto update_dst;
 	}
 
 	if (sock6_update_revnat(ctx, backend, &key,
-			        slave_svc) < 0) {
+			        svc->rev_nat_index) < 0) {
 		update_metrics(0, METRIC_EGRESS, REASON_LB_REVNAT_UPDATE);
 		return -ENOMEM;
 	}
